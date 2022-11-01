@@ -21,22 +21,6 @@ contract Activator is
     AccessControlUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    struct Account {
-        // The total number of unexchanged tokens that an account has deposited into the system
-        uint256 unexchangedBalance;
-        // The total number of exchanged tokens that an account has had credited
-        uint256 exchangedBalance;
-    }
-
-    struct UpdateAccount {
-        // The owner address whose account will be modified
-        address user;
-        // The amount to change the account's unexchanged balance by
-        int256 unexchangedBalance;
-        // The amount to change the account's exchanged balance by
-        int256 exchangedBalance;
-    }
-
     /**
      * @notice Emitted when the system is paused or unpaused.
      * @param flag `true` if the system has been paused, `false` otherwise.
@@ -56,6 +40,22 @@ contract Activator is
         uint256 unexchangedBalance,
         uint256 exchangedBalance
     );
+
+    struct Account {
+        // The total number of unexchanged tokens that an account has deposited into the system
+        uint256 unexchangedBalance;
+        // The total number of exchanged tokens that an account has had credited
+        uint256 exchangedBalance;
+    }
+
+    struct UpdateAccount {
+        // The owner address whose account will be modified
+        address user;
+        // The amount to change the account's unexchanged balance by
+        int256 unexchangedBalance;
+        // The amount to change the account's exchanged balance by
+        int256 exchangedBalance;
+    }
 
     // @dev The identifier of the role which maintains other roles.
     bytes32 public constant ADMIN = keccak256("ADMIN");
