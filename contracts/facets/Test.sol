@@ -4,23 +4,16 @@ pragma solidity ^0.8.7;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {LibDiamond} from "../libraries/LibDiamond.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "../libraries/TokenUtils.sol";
 import "../base/Error.sol";
 import "../libraries/SafeCast.sol";
 
-/**
- * @title Activator
- * @notice A contract which facilitates the exchange of synthetic assets for their underlying
- * asset. This contract guarantees that synthetic assets are exchanged exactly 1:1
- * for the underlying asset.
- */
-
-contract Activator is Initializable, ReentrancyGuardUpgradeable {
-    /**
-     * @notice Emitted when the system is paused or unpaused.
-     * @param flag `true` if the system has been paused, `false` otherwise.
-     */
+contract Test is
+    Initializable,
+    ReentrancyGuardUpgradeable,
+    AccessControlUpgradeable
+{
     event Paused(bool flag);
 
     event Deposit(address indexed user, uint256 unexchangedBalance);
@@ -52,21 +45,17 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         // The amount to change the account's exchanged balance by
         int256 exchangedBalance;
     }
+    // @dev The identifier of the role which maintains other roles.
+    bytes32 public constant ADMIN = keccak256("ADMIN");
 
-    // // @dev The identifier of the role which maintains other roles.
-    // bytes32 public constant ADMIN = keccak256("ADMIN");
-
-    // // @dev The identifier of the sentinel role
-    // bytes32 public constant SENTINEL = keccak256("SENTINEL");
+    // @dev The identifier of the sentinel role
+    bytes32 public constant SENTINEL = keccak256("SENTINEL");
 
     // @dev the synthetic token to be exchanged
     address public syntheticToken;
 
     // @dev the underlyinToken token to be received
     address public underlyingToken;
-
-    // @dev contract pause state
-    bool public isPaused;
 
     mapping(address => Account) private accounts;
 
@@ -76,23 +65,11 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         external
         initializer
     {
+        // _setupRole(ADMIN, msg.sender);
+        // _setRoleAdmin(ADMIN, ADMIN);
+        // _setRoleAdmin(SENTINEL, ADMIN);
         syntheticToken = _syntheticToken;
         underlyingToken = _underlyingToken;
-        isPaused = false;
-    }
-
-    // @dev A modifier which checks whether the Activator is unpaused.
-    modifier notPaused() {
-        if (isPaused) {
-            revert IllegalState();
-        }
-        _;
-    }
-
-    function setPause(bool pauseState) external {
-        LibDiamond.enforceIsContractOwner();
-        isPaused = pauseState;
-        emit Paused(isPaused);
     }
 
     function depositSynthetic(uint256 amount) external {
