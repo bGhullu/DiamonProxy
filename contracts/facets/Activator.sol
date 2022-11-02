@@ -8,6 +8,7 @@ import {LibDiamond} from "../libraries/LibDiamond.sol";
 import "../libraries/TokenUtils.sol";
 import "../base/Error.sol";
 import "../libraries/SafeCast.sol";
+import "../libraries/AppStorage.sol";
 
 /**
  * @title Activator
@@ -17,6 +18,8 @@ import "../libraries/SafeCast.sol";
  */
 
 contract Activator is Initializable, ReentrancyGuardUpgradeable {
+    AppStorage s;
+
     /**
      * @notice Emitted when the system is paused or unpaused.
      * @param flag `true` if the system has been paused, `false` otherwise.
@@ -37,38 +40,38 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         uint256 exchangedBalance
     );
 
-    struct Account {
-        // The total number of unexchanged tokens that an account has deposited into the system
-        uint256 unexchangedBalance;
-        // The total number of exchanged tokens that an account has had credited
-        uint256 exchangedBalance;
-    }
+    // struct Account {
+    //     // The total number of unexchanged tokens that an account has deposited into the system
+    //     uint256 unexchangedBalance;
+    //     // The total number of exchanged tokens that an account has had credited
+    //     uint256 exchangedBalance;
+    // }
 
-    struct UpdateAccount {
-        // The owner address whose account will be modified
-        address user;
-        // The amount to change the account's unexchanged balance by
-        int256 unexchangedBalance;
-        // The amount to change the account's exchanged balance by
-        int256 exchangedBalance;
-    }
+    // struct UpdateAccount {
+    //     // The owner address whose account will be modified
+    //     address user;
+    //     // The amount to change the account's unexchanged balance by
+    //     int256 unexchangedBalance;
+    //     // The amount to change the account's exchanged balance by
+    //     int256 exchangedBalance;
+    // }
 
-    // // @dev The identifier of the role which maintains other roles.
-    // bytes32 public constant ADMIN = keccak256("ADMIN");
+    // // // @dev The identifier of the role which maintains other roles.
+    // // bytes32 public constant ADMIN = keccak256("ADMIN");
 
-    // // @dev The identifier of the sentinel role
-    // bytes32 public constant SENTINEL = keccak256("SENTINEL");
+    // // // @dev The identifier of the sentinel role
+    // // bytes32 public constant SENTINEL = keccak256("SENTINEL");
 
-    // @dev the synthetic token to be exchanged
-    address public syntheticToken;
+    // // @dev the synthetic token to be exchanged
+    // address public syntheticToken;
 
-    // @dev the underlyinToken token to be received
-    address public underlyingToken;
+    // // @dev the underlyinToken token to be received
+    // address public underlyingToken;
 
-    // @dev contract pause state
-    bool public isPaused;
+    // // @dev contract pause state
+    // bool public isPaused;
 
-    mapping(address => Account) private accounts;
+    // mapping(address => Account) private accounts;
 
     constructor() {}
 
@@ -76,14 +79,14 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         external
         initializer
     {
-        syntheticToken = _syntheticToken;
-        underlyingToken = _underlyingToken;
-        isPaused = false;
+        s.syntheticToken = _syntheticToken;
+        s.underlyingToken = _underlyingToken;
+        s.isPaused = false;
     }
 
     // @dev A modifier which checks whether the Activator is unpaused.
     modifier notPaused() {
-        if (isPaused) {
+        if (s.isPaused) {
             revert IllegalState();
         }
         _;
@@ -91,20 +94,20 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
 
     function setPause(bool pauseState) external {
         LibDiamond.enforceIsContractOwner();
-        isPaused = pauseState;
-        emit Paused(isPaused);
+        s.isPaused = pauseState;
+        emit Paused(s.isPaused);
     }
 
     function depositSynthetic(uint256 amount) external {
         _updateAccount(
-            UpdateAccount({
+            UpgradeActivatorAccount({
                 user: msg.sender,
                 unexchangedBalance: SafeCast.toInt256(amount),
                 exchangedBalance: 0
             })
         );
         TokenUtils.safeTransferFrom(
-            syntheticToken,
+            s.syntheticToken,
             msg.sender,
             address(this),
             amount
@@ -114,39 +117,39 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
 
     function withdraw(uint256 amount) external {
         _updateAccount(
-            UpdateAccount({
+            UpgradeActivatorAccount({
                 user: msg.sender,
                 unexchangedBalance: -SafeCast.toInt256(amount),
                 exchangedBalance: 0
             })
         );
-        TokenUtils.safeTransfer(syntheticToken, msg.sender, amount);
+        TokenUtils.safeTransfer(s.syntheticToken, msg.sender, amount);
         emit Withdraw(
             msg.sender,
-            accounts[msg.sender].unexchangedBalance,
-            accounts[msg.sender].exchangedBalance
+            s.accounts[msg.sender].unexchangedBalance,
+            s.accounts[msg.sender].exchangedBalance
         );
     }
 
     function claim(uint256 amount) external {
         _updateAccount(
-            UpdateAccount({
+            UpgradeActivatorAccount({
                 user: msg.sender,
                 unexchangedBalance: -SafeCast.toInt256(amount),
                 exchangedBalance: SafeCast.toInt256(amount)
             })
         );
-        TokenUtils.safeTransfer(underlyingToken, msg.sender, amount);
-        TokenUtils.safeBurn(syntheticToken, amount);
+        TokenUtils.safeTransfer(s.underlyingToken, msg.sender, amount);
+        TokenUtils.safeBurn(s.syntheticToken, amount);
         emit Claim(
             msg.sender,
-            accounts[msg.sender].unexchangedBalance,
-            accounts[msg.sender].exchangedBalance
+            s.accounts[msg.sender].unexchangedBalance,
+            s.accounts[msg.sender].exchangedBalance
         );
     }
 
-    function _updateAccount(UpdateAccount memory param) internal {
-        Account storage _account = accounts[param.user];
+    function _updateAccount(UpgradeActivatorAccount memory param) internal {
+        ActivatorAccount storage _account = s.accounts[param.user];
         int256 updateUnexchange = int256(_account.unexchangedBalance) +
             param.unexchangedBalance;
         int256 updateExchange = int256(_account.exchangedBalance) +
