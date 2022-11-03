@@ -79,6 +79,7 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         external
         initializer
     {
+        LibDiamond.enforceIsContractOwner();
         s.syntheticToken = _syntheticToken;
         s.underlyingToken = _underlyingToken;
         s.isPaused = false;
@@ -99,6 +100,7 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
     }
 
     function depositSynthetic(uint256 amount) external {
+        IERC20(s.syntheticToken).approve(address(this), amount);
         _updateAccount(
             UpgradeActivatorAccount({
                 user: msg.sender,
@@ -115,7 +117,7 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         emit Deposit(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount) external {
+    function withdrawSynthetic(uint256 amount) external {
         _updateAccount(
             UpgradeActivatorAccount({
                 user: msg.sender,
@@ -131,7 +133,7 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         );
     }
 
-    function claim(uint256 amount) external {
+    function claimUnderlying(uint256 amount) external {
         _updateAccount(
             UpgradeActivatorAccount({
                 user: msg.sender,
