@@ -1,7 +1,9 @@
 /* global ethers */
 /* eslint prefer-const: "off" */
-
+const {ethers} = require("hardhat")
 const { getSelectors, FacetCutAction } = require('./libraries/diamond.js')
+const { verify } = require("../utils/verify")
+
 
 async function deployDiamond () {
   const accounts = await ethers.getSigners()
@@ -25,12 +27,15 @@ async function deployDiamond () {
     'Activator'
   ]
   // The `facetCuts` variable is the FacetCut[] that contains the functions to add during diamond deployment
+  const arg=[]
   const facetCuts = []
   for (const FacetName of FacetNames) {
     const Facet = await ethers.getContractFactory(FacetName)
     const facet = await Facet.deploy()
     await facet.deployed()
     console.log(`${FacetName} deployed: ${facet.address}`)
+    await sleep(100000)
+    await verify (facet.address, arg)
     facetCuts.push({
       facetAddress: facet.address,
       action: FacetCutAction.Add,
@@ -51,15 +56,31 @@ async function deployDiamond () {
     initCalldata: functionCall
   }
 
+  const args = [
+    facetCuts,
+    diamondArgs,
+  ]
+
   // deploy Diamond
   const Diamond = await ethers.getContractFactory('Diamond')
   const diamond = await Diamond.deploy(facetCuts, diamondArgs)
   await diamond.deployed()
+  await sleep(100000)
   console.log()
   console.log('Diamond deployed:', diamond.address)
+  await verify (diamond.address, args)
+   
+
+
 
   // returning the address of the diamond
   return diamond.address
+
+ 
+}
+
+function sleep(timeInMs) {
+  return new Promise((resolve) => setTimeout(resolve, timeInMs))
 }
 
 // We recommend this pattern to be able to use async/await everywhere
