@@ -1,84 +1,86 @@
 /* global ethers */
 /* eslint prefer-const: "off" */
-const {ethers} = require("hardhat")
-const { getSelectors, FacetCutAction } = require('./libraries/diamond.js')
-const { verify } = require("../utils/verify")
 
+const { getSelectors, FacetCutAction } = require('./libraries/diamond.js')
+const {verify} =require("../utils/verify")
 
 async function deployDiamond () {
   const accounts = await ethers.getSigners()
   const contractOwner = accounts[0]
 
-  // Deploy DiamondInit
-  // DiamondInit provides a function that is called when the diamond is upgraded or deployed to initialize state variables
-  // Read about how the diamondCut function works in the EIP2535 Diamonds standard
+  const arg =[]
+  //  deploy DiamondCutFacet
+  const DiamondCutFacet = await ethers.getContractFactory('DiamondCutFacet')
+  const diamondCutFacet = await DiamondCutFacet.deploy()
+  await diamondCutFacet.deployed()
+  console.log('DiamondCutFacet deployed:', diamondCutFacet.address)
+  // await sleep(30000)
+  // await verify (diamondCutFacet.address, arg)
+  
+
+  const args = [contractOwner.address,diamondCutFacet.address]
+  // deploy Diamond
+  const Diamond = await ethers.getContractFactory('Diamond')
+  const diamond = await Diamond.deploy(contractOwner.address, diamondCutFacet.address)
+  await diamond.deployed()
+  console.log('Diamond deployed:', diamond.address)
+  // await sleep(30000)
+  // await verify (diamond.address, args)
+
+  // deploy DiamondInit
+  // DiamondInit provides a function that is called when the diamond is upgraded to initialize state variables
+  // Read about how the diamondCut function works here: https://eips.ethereum.org/EIPS/eip-2535#addingreplacingremoving-functions
   const DiamondInit = await ethers.getContractFactory('DiamondInit')
   const diamondInit = await DiamondInit.deploy()
   await diamondInit.deployed()
   console.log('DiamondInit deployed:', diamondInit.address)
+  // await sleep(30000)
+  // await verify (diamondInit.address, arg)
 
-  // Deploy facets and set the `facetCuts` variable
+  // deploy facets
   console.log('')
   console.log('Deploying facets')
   const FacetNames = [
-    'DiamondCutFacet',
-    'DiamondLoupeFacet',
-    'OwnershipFacet',
-    'Activator'
+    // 'DiamondLoupeFacet',
+    // 'OwnershipFacet',
+    // 'ActivatorFacet',
+    'ControllerFacet',
+    // 'LockFacet',
+    // 'PriceFeedFacet',
+    'SafeOperationsFacet',
+    // 'TreasuryFacet'
   ]
-  // The `facetCuts` variable is the FacetCut[] that contains the functions to add during diamond deployment
-  const arg=[]
-  const facetCuts = []
+  const cut = []
   for (const FacetName of FacetNames) {
     const Facet = await ethers.getContractFactory(FacetName)
     const facet = await Facet.deploy()
     await facet.deployed()
+    // await sleep(20000)
+    // await verify (facet.address, arg)
     console.log(`${FacetName} deployed: ${facet.address}`)
-    await sleep(100000)
-    await verify (facet.address, arg)
-    facetCuts.push({
+    cut.push({
       facetAddress: facet.address,
       action: FacetCutAction.Add,
       functionSelectors: getSelectors(facet)
     })
   }
   console.log('')
-  console.log('Diamond Cut:', facetCuts)
-  // Creating a function call
-  // This call gets executed during deployment and can also be executed in upgrades
-  // It is executed with delegatecall on the DiamondInit address.
+  console.log('Diamond Cut:', cut)
+  const diamondCut = await ethers.getContractAt('IDiamondCut', diamond.address)
+  let tx
+  let receipt
+  // call to init function
   let functionCall = diamondInit.interface.encodeFunctionData('init')
-
-  // Setting arguments that will be used in the diamond constructor
-  const diamondArgs = {
-    owner: contractOwner.address,
-    init: diamondInit.address,
-    initCalldata: functionCall
+  tx = await diamondCut.diamondCut(cut, diamondInit.address, functionCall)
+  console.log('Diamond cut tx: ', tx.hash)
+  receipt = await tx.wait()
+  if (!receipt.status) {
+    throw Error(`Diamond upgrade failed: ${tx.hash}`)
   }
-
-  const args = [
-    facetCuts,
-    diamondArgs,
-  ]
-
-  // deploy Diamond
-  const Diamond = await ethers.getContractFactory('Diamond')
-  const diamond = await Diamond.deploy(facetCuts, diamondArgs)
-  await diamond.deployed()
-  await sleep(100000)
-  console.log()
-  console.log('Diamond deployed:', diamond.address)
-  await verify (diamond.address, args)
-   
-
-
-
-  // returning the address of the diamond
-  return diamond.address
-
  
+  console.log('Completed diamond cut')
+  return diamond.address
 }
-
 function sleep(timeInMs) {
   return new Promise((resolve) => setTimeout(resolve, timeInMs))
 }
@@ -93,5 +95,7 @@ if (require.main === module) {
       process.exit(1)
     })
 }
+
+
 
 exports.deployDiamond = deployDiamond

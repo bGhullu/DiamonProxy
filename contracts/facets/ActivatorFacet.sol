@@ -17,8 +17,27 @@ import "../libraries/AppStorage.sol";
  * for the underlying asset.
  */
 
-contract Activator is Initializable, ReentrancyGuardUpgradeable {
+contract ActivatorFacet is Initializable, ReentrancyGuardUpgradeable {
     AppStorage s;
+
+    // struct ActivatorAccount {
+    //     // The total number of unexchanged tokens that an account has deposited into the system
+    //     uint256 unexchangedBalance;
+    //     // The total number of exchanged tokens that an account has had credited
+    //     uint256 exchangedBalance;
+    // }
+
+    struct UpgradeActivatorAccount {
+        // The owner address whose account will be modified
+        address user;
+        // The amount to change the account's unexchanged balance by
+        int256 unexchangedBalance;
+        // The amount to change the account's exchanged balance by
+        int256 exchangedBalance;
+    }
+
+    /// @dev The amount of decimal places needed to normalize collateral to debtToken
+    uint256 public conversionFactor;
 
     /**
      * @notice Emitted when the system is paused or unpaused.
@@ -39,39 +58,6 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         uint256 unexchangedBalance,
         uint256 exchangedBalance
     );
-
-    // struct Account {
-    //     // The total number of unexchanged tokens that an account has deposited into the system
-    //     uint256 unexchangedBalance;
-    //     // The total number of exchanged tokens that an account has had credited
-    //     uint256 exchangedBalance;
-    // }
-
-    // struct UpdateAccount {
-    //     // The owner address whose account will be modified
-    //     address user;
-    //     // The amount to change the account's unexchanged balance by
-    //     int256 unexchangedBalance;
-    //     // The amount to change the account's exchanged balance by
-    //     int256 exchangedBalance;
-    // }
-
-    // // // @dev The identifier of the role which maintains other roles.
-    // // bytes32 public constant ADMIN = keccak256("ADMIN");
-
-    // // // @dev The identifier of the sentinel role
-    // // bytes32 public constant SENTINEL = keccak256("SENTINEL");
-
-    // // @dev the synthetic token to be exchanged
-    // address public syntheticToken;
-
-    // // @dev the underlyinToken token to be received
-    // address public underlyingToken;
-
-    // // @dev contract pause state
-    // bool public isPaused;
-
-    // mapping(address => Account) private accounts;
 
     constructor() {}
 
@@ -99,8 +85,8 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         emit Paused(s.isPaused);
     }
 
-    function depositSynthetic(uint256 amount) external {
-        IERC20(s.syntheticToken).approve(address(this), amount);
+    function depositSynthetic(uint256 amount) external nonReentrant {
+        // IERC20(s.syntheticToken).approve(address(this), amount);
         _updateAccount(
             UpgradeActivatorAccount({
                 user: msg.sender,
@@ -117,7 +103,7 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         emit Deposit(msg.sender, amount);
     }
 
-    function withdrawSynthetic(uint256 amount) external {
+    function withdrawSynthetic(uint256 amount) external nonReentrant {
         _updateAccount(
             UpgradeActivatorAccount({
                 user: msg.sender,
@@ -133,7 +119,7 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         );
     }
 
-    function claimUnderlying(uint256 amount) external {
+    function claimUnderlying(uint256 amount) external nonReentrant {
         _updateAccount(
             UpgradeActivatorAccount({
                 user: msg.sender,
@@ -161,5 +147,24 @@ contract Activator is Initializable, ReentrancyGuardUpgradeable {
         }
         _account.unexchangedBalance = uint256(updateUnexchange);
         _account.exchangedBalance = uint256(updateExchange);
+    }
+
+    function getSyntheticToken() external view returns (address) {
+        return s.syntheticToken;
+    }
+
+    function getUnderlyingToken() external view returns (address) {
+        return s.underlyingToken;
+    }
+
+    function getUserData(address user)
+        external
+        view
+        returns (uint256, uint256)
+    {
+        ActivatorAccount storage _account = s.accounts[user];
+        uint256 unexchange = _account.unexchangedBalance;
+        uint256 exchange = _account.exchangedBalance;
+        return (unexchange, exchange);
     }
 }
