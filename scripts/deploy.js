@@ -14,8 +14,8 @@ async function deployDiamond () {
   const diamondCutFacet = await DiamondCutFacet.deploy()
   await diamondCutFacet.deployed()
   console.log('DiamondCutFacet deployed:', diamondCutFacet.address)
-  // await sleep(30000)
-  // await verify (diamondCutFacet.address, arg)
+  await sleep(30000)
+  await verify (diamondCutFacet.address, arg)
   
 
   const args = [contractOwner.address,diamondCutFacet.address]
@@ -24,8 +24,8 @@ async function deployDiamond () {
   const diamond = await Diamond.deploy(contractOwner.address, diamondCutFacet.address)
   await diamond.deployed()
   console.log('Diamond deployed:', diamond.address)
-  // await sleep(30000)
-  // await verify (diamond.address, args)
+  await sleep(30000)
+  await verify (diamond.address, args)
 
   // deploy DiamondInit
   // DiamondInit provides a function that is called when the diamond is upgraded to initialize state variables
@@ -34,8 +34,8 @@ async function deployDiamond () {
   const diamondInit = await DiamondInit.deploy()
   await diamondInit.deployed()
   console.log('DiamondInit deployed:', diamondInit.address)
-  // await sleep(30000)
-  // await verify (diamondInit.address, arg)
+  await sleep(30000)
+  await verify (diamondInit.address, arg)
 
   // deploy facets
   console.log('')
