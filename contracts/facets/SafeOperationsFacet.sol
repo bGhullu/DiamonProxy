@@ -16,6 +16,7 @@ import "../interfaces/IPriceFeed.sol";
 import "../interfaces/IUnactivated.sol";
 import "../interfaces/ITreasury.sol";
 import "../utils/StableMath.sol";
+import "../libraries/AppStorage.sol";
 
 /**
  * @dev
@@ -28,12 +29,15 @@ import "../utils/StableMath.sol";
  *  Contains user-operated functions for managing Safes.
  */
 contract SafeOperationsFacet is ReentrancyGuard, Initializable {
+    AppStorage s;
+
     // using SafeMath for uint256;
+
     using StableMath for uint256;
 
-    address public safeManager;
+    // address public safeManager;
 
-    address public treasury;
+    // address public treasury;
 
     address public priceFeed;
 
@@ -43,15 +47,15 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
 
     IPriceFeed priceFeedContract;
 
-    mapping(address => address) public tokenToController;
+    // mapping(address => address) public tokenToController;
 
     /**
      * @dev
      *  Later use for self-repaying loan logic.
-     */
-    mapping(address => bool) public isActiveToken;
+    //  */
+    // mapping(address => bool) public isActiveToken;
 
-    mapping(address => address) public activeToInputToken;
+    // mapping(address => address) public activeToInputToken;
 
     /**
      * @notice
@@ -60,7 +64,7 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
      */
     uint public originationFee = 200 * 10**18; // tokens
 
-    mapping(address => uint) public originationFeesCollected;
+    // mapping(address => uint) public originationFeesCollected;
 
     uint public minBorrow = 2_000 * 10**18; // tokens
 
@@ -77,19 +81,6 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
         uint debt;
     }
 
-    // constructor(
-    //     address _safeManager,
-    //     address _priceFeed,
-    //     address _treasury
-    // ) {
-    //     safeManager = _safeManager;
-    //     priceFeed = _priceFeed;
-    //     treasury = _treasury;
-    //     safeManagerContract = ISafeManager(safeManager);
-    //     priceFeedContract = IPriceFeed(priceFeed);
-    //     treasuryContract = ITreasury(treasury);
-    // }
-
     constructor() {}
 
     function initialize(
@@ -97,12 +88,12 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
         address _priceFeed,
         address _treasury
     ) external initializer {
-        safeManager = _safeManager;
+        s.safeManager = _safeManager;
         priceFeed = _priceFeed;
-        treasury = _treasury;
-        safeManagerContract = ISafeManager(safeManager);
+        s.treasury = _treasury;
+        safeManagerContract = ISafeManager(s.safeManager);
         priceFeedContract = IPriceFeed(priceFeed);
-        treasuryContract = ITreasury(treasury);
+        treasuryContract = ITreasury(s.treasury);
     }
 
     /**
@@ -112,7 +103,7 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
      * @return address The address of the target controller.
      */
     function getController(address _token) external view returns (address) {
-        return tokenToController[_token];
+        return s.tokenToController[_token];
     }
 
     /**
@@ -128,11 +119,11 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
     function openSafe(address _token, uint _amount) external nonReentrant {
         // First, check if a Controller exists for the token.
         require(
-            tokenToController[_token] != address(0),
+            s.tokenToController[_token] != address(0),
             "SafeOps: Controller not found"
         );
 
-        address _targetController = tokenToController[_token];
+        address _targetController = s.tokenToController[_token];
         console.log("Target controller: %s", _targetController);
 
         IController targetController = IController(_targetController);
@@ -211,11 +202,11 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
     ) external nonReentrant {
         // First, check if a Controller exists for the token.
         require(
-            tokenToController[_token] != address(0),
+            s.tokenToController[_token] != address(0),
             "SafeOps: Controller not found"
         );
 
-        address _targetController = tokenToController[_token];
+        address _targetController = s.tokenToController[_token];
 
         IController targetController = IController(_targetController);
 
@@ -307,7 +298,7 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
         require(_amount <= cacheVal.bal, "SafeOps: Insufficient balance");
 
         // Locate the activeToken's Controller.
-        address _targetController = tokenToController[cacheInit.activeToken];
+        address _targetController = s.tokenToController[cacheInit.activeToken];
 
         IController targetController = IController(_targetController);
 
@@ -433,7 +424,7 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
             console.log("Initialized borrow");
         }
 
-        originationFeesCollected[cacheInit.activeToken] += originationFee;
+        s.originationFeesCollected[cacheInit.activeToken] += originationFee;
 
         safeManagerContract.adjustSafeBal({
             _owner: cacheInit.owner,
@@ -746,7 +737,7 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
         returns (bool)
     {
         IController targetController = IController(
-            tokenToController[_activeToken]
+            s.tokenToController[_activeToken]
         );
 
         if (_activeToken == targetController.getActiveToken()) return true;
@@ -759,7 +750,7 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
      */
     function validInputToken(address _inputToken) internal view returns (bool) {
         IController targetController = IController(
-            tokenToController[_inputToken]
+            s.tokenToController[_inputToken]
         );
 
         if (_inputToken == targetController.getInputToken()) return true;
@@ -800,10 +791,10 @@ contract SafeOperationsFacet is ReentrancyGuard, Initializable {
      * @dev Admin function to set the Controller of a given inputToken.
      */
     function setController(address _token, address _controller) external {
-        tokenToController[_token] = _controller;
+        s.tokenToController[_token] = _controller;
     }
 
     function setTreasury(address _treasury) external {
-        treasury = _treasury;
+        s.treasury = _treasury;
     }
 }

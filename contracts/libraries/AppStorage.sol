@@ -33,9 +33,8 @@ struct AppStorage {
     // @dev contract pause state
     bool isPaused;
     mapping(address => ActivatorAccount) accounts;
-
-    // // ControllerFacet
-    // address safeManager;
+    // ControllerFacet
+    address safeManager;
     // /**
     //  * @notice
     //  *  Collects fees, backing tokens (+ yield) and
@@ -43,45 +42,27 @@ struct AppStorage {
     //  *  Allocates as necessary (e.g., depositing USDST backing
     //  *  tokens into the Curve USDST AcivePool).
     //  */
-    // address treasury;
-    // address activeToken;
-    // address unactiveToken;
-    // address inputToken;
-    // /**
-    //  * @dev
-    //  *  Only accept one inputToken to begin with.
-    //  *  Need to later adapt.
-    //  */
-    // IERC20 inputTokenContract;
-    // IERC20 activeTokenContractERC20;
-    // IERC20 unactiveTokenContractERC20;
-    // /**
-    //  * @dev
-    //  *  Only accept one yield venue per Controller to begin with.
-    //  *  For integrations that are not ERC4626-compatible (e.g., Aave), need to point to
-    //  *  a ERC4626 wrapper.
-    //  */
-    // IERC4626 vault;
-    // ITreasury treasuryContract;
-    // /**
-    //  * @dev Only one activeToken per Controller (this contract).
-    //  * @notice Rebasing (activated) Stoa token.
-    //  */
-    // IActivated activeTokenContract;
-    // IUnactivated unactiveTokenContract;
-    // ISafeManager safeManagerContract;
-    // /**
-    //  * @dev Boolean to pause receiving deposits.
-    //  */
-    // bool isReceivingInputs;
-    // mapping(address => uint) unactiveRedemptionAllowance;
-    // /**
-    //  * @notice Stat collection.
-    //  */
-    // uint amountDeposited;
-    // uint amountWithdrawn;
-    // uint accruedYield;
-    // uint yieldAccrued;
-    // uint holderYieldAccrued;
-    // uint stoaYieldAccrued;
+    address treasury;
+    address activeToken;
+    address unactiveToken;
+    address inputToken;
+    // PriceFeedFacet
+    mapping(address => uint) tokenPrice;
+    // SafeOperationsFacet
+
+    mapping(address => address) tokenToController;
+    /**
+     * @dev
+     *  Later use for self-repaying loan logic.
+     */
+    mapping(address => bool) isActiveToken;
+    mapping(address => address) activeToInputToken;
+    mapping(address => uint) originationFeesCollected;
+    // TreasuryFacet
+
+    /**
+     * @notice Amount of apTokens of a given ActivePool owned by the Treasury.
+     */
+    mapping(address => mapping(address => int)) backingReserve;
+    mapping(address => uint) apTokens;
 }

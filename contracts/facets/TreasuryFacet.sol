@@ -18,15 +18,17 @@ import "../interfaces/IActivated.sol";
 import "../interfaces/IUnactivated.sol";
 import "../utils/Common.sol";
 import "../utils/RebaseOpt.sol";
+import "../libraries/AppStorage.sol";
 
 // contract TreasuryFacet is Ownable, Common, RebaseOpt {
 contract TreasuryFacet {
-    mapping(address => mapping(address => int)) public backingReserve;
+    AppStorage s;
+    // mapping(address => mapping(address => int)) public backingReserve;
 
-    /**
-     * @notice Amount of apTokens of a given ActivePool owned by the Treasury.
-     */
-    mapping(address => uint) public apTokens;
+    // /**
+    //  * @notice Amount of apTokens of a given ActivePool owned by the Treasury.
+    //  */
+    // mapping(address => uint) public apTokens;
 
     uint controllerBuffer;
 
@@ -50,7 +52,7 @@ contract TreasuryFacet {
         address _backingToken,
         int _amount // onlyController
     ) external {
-        backingReserve[_wildToken][_backingToken] += _amount;
+        s.backingReserve[_wildToken][_backingToken] += _amount;
     }
 
     /**

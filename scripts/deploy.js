@@ -41,22 +41,22 @@ async function deployDiamond () {
   console.log('')
   console.log('Deploying facets')
   const FacetNames = [
-    // 'DiamondLoupeFacet',
-    // 'OwnershipFacet',
-    // 'ActivatorFacet',
+    'DiamondLoupeFacet',
+    'OwnershipFacet',
+    'ActivatorFacet',
     'ControllerFacet',
-    // 'LockFacet',
-    // 'PriceFeedFacet',
+    'LockFacet',
+    'PriceFeedFacet',
     'SafeOperationsFacet',
-    // 'TreasuryFacet'
+    'TreasuryFacet'
   ]
   const cut = []
   for (const FacetName of FacetNames) {
     const Facet = await ethers.getContractFactory(FacetName)
     const facet = await Facet.deploy()
     await facet.deployed()
-    // await sleep(20000)
-    // await verify (facet.address, arg)
+    await sleep(10000)
+    await verify (facet.address, arg)
     console.log(`${FacetName} deployed: ${facet.address}`)
     cut.push({
       facetAddress: facet.address,

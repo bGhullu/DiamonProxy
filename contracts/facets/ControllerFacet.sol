@@ -13,9 +13,10 @@ import "../interfaces/IActivated.sol";
 import "../interfaces/IUnactivated.sol";
 import "../interfaces/ITreasury.sol";
 import "../interfaces/ISafeManager.sol";
-import "../libraries/RebaseOpt.sol";
+// import "../libraries/RebaseOpt.sol";
 // import {RebaseOpt} from "../utils/RebaseOpt.sol";
 import {Common} from "../utils/Common.sol";
+import "../libraries/AppStorage.sol";
 
 /**
  * @notice
@@ -37,7 +38,9 @@ import {Common} from "../utils/Common.sol";
  *  Calls 'changeSupply()' of activeToken contract upon successful rebase.
  */
 contract ControllerFacet is Common, ReentrancyGuard, Initializable {
-    address public safeManager;
+    // address public safeManager;
+
+    AppStorage s;
 
     /**
      * @notice
@@ -46,11 +49,11 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
      *  Allocates as necessary (e.g., depositing USDST backing
      *  tokens into the Curve USDST AcivePool).
      */
-    address public treasury;
+    // address public treasury;
 
-    address public activeToken;
-    address public unactiveToken;
-    address public inputToken;
+    // address public activeToken;
+    // address public unactiveToken;
+    // address public inputToken;
 
     /**
      * @dev
@@ -112,48 +115,6 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
     // uint256 MIN_AMOUNT = 20e18; // $20
     uint256 private dust = 1e16;
 
-    // /**
-    //  * @dev Set initial values and approvals.
-    //  */
-    // constructor(
-    //     address _vault,
-    //     address _treasury,
-    //     address _safeManager,
-    //     address _inputToken,
-    //     address _activeToken,
-    //     address _unactiveToken
-    // ) {
-    //     vault = IERC4626(_vault);
-
-    //     treasury = _treasury;
-
-    //     treasuryContract = ITreasury(_treasury);
-
-    //     safeManager = _safeManager;
-
-    //     safeManagerContract = ISafeManager(safeManager);
-
-    //     activeToken = _activeToken;
-
-    //     unactiveToken = _unactiveToken;
-
-    //     inputToken = _inputToken;
-
-    //     activeTokenContract = IActivated(activeToken);
-
-    //     unactiveTokenContract = IUnactivated(unactiveToken);
-
-    //     activeTokenContractERC20 = IERC20(activeToken);
-
-    //     unactiveTokenContractERC20 = IERC20(unactiveToken);
-
-    //     inputTokenContract = IERC20(_inputToken);
-
-    //     activeTokenContractERC20.approve(address(this), type(uint).max);
-
-    //     inputTokenContract.approve(address(vault), type(uint).max);
-    // }
-
     constructor() {}
 
     function initialize(
@@ -166,27 +127,27 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
     ) external initializer {
         vault = IERC4626(_vault);
 
-        treasury = _treasury;
+        s.treasury = _treasury;
 
         treasuryContract = ITreasury(_treasury);
 
-        safeManager = _safeManager;
+        s.safeManager = _safeManager;
 
-        safeManagerContract = ISafeManager(safeManager);
+        safeManagerContract = ISafeManager(s.safeManager);
 
-        activeToken = _activeToken;
+        s.activeToken = _activeToken;
 
-        unactiveToken = _unactiveToken;
+        s.unactiveToken = _unactiveToken;
 
-        inputToken = _inputToken;
+        s.inputToken = _inputToken;
 
-        activeTokenContract = IActivated(activeToken);
+        activeTokenContract = IActivated(s.activeToken);
 
-        unactiveTokenContract = IUnactivated(unactiveToken);
+        unactiveTokenContract = IUnactivated(s.unactiveToken);
 
-        activeTokenContractERC20 = IERC20(activeToken);
+        activeTokenContractERC20 = IERC20(s.activeToken);
 
-        unactiveTokenContractERC20 = IERC20(unactiveToken);
+        unactiveTokenContractERC20 = IERC20(s.unactiveToken);
 
         inputTokenContract = IERC20(_inputToken);
 
@@ -244,7 +205,7 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
                 console.log("Minted %s activeTokens to Controller", _amount);
 
                 IERC4626 activePool = IERC4626(
-                    safeManagerContract.getActivePool(activeToken)
+                    safeManagerContract.getActivePool(s.activeToken)
                 );
 
                 // Safe collateral is stored in its respective ActivePool contract.
@@ -259,19 +220,19 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
                 console.log("Minted %s activeTokens to User", mintAmount);
 
                 // Capture mintFee and send to Treasury.
-                activeTokenContract.mint(treasury, _mintFee);
+                activeTokenContract.mint(s.treasury, _mintFee);
                 console.log("Minted %s activeTokens to Treasury", _mintFee);
             }
             // E.g., DAI => USDST.
         } else {
             // Mint backing activeTokens to Treasury.
-            activeTokenContract.mint(treasury, _amount);
+            activeTokenContract.mint(s.treasury, _amount);
             console.log("Minted %s backing activeTokens to Treasury", _amount);
 
             // Treasury captures mintFee = _amount - mintAmount.
             treasuryContract.adjustBackingReserve({
-                _wildToken: unactiveToken,
-                _backingToken: activeToken,
+                _wildToken: s.unactiveToken,
+                _backingToken: s.activeToken,
                 _amount: int(mintAmount)
             });
             console.log(
@@ -310,7 +271,7 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
         uint _mintFee = computeFee(_amount, true);
         mintAmount = _amount - _mintFee;
 
-        activeTokenContract.transferFrom(msg.sender, treasury, _amount);
+        activeTokenContract.transferFrom(msg.sender, s.treasury, _amount);
         console.log(
             "Transferred %s activeTokens, for backing, from %s to Treasury",
             _amount,
@@ -319,8 +280,8 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
 
         // Treasury captures mintFee = _amount - mintAmount.
         treasuryContract.adjustBackingReserve({
-            _wildToken: unactiveToken,
-            _backingToken: activeToken,
+            _wildToken: s.unactiveToken,
+            _backingToken: s.activeToken,
             _amount: int(mintAmount)
         });
         console.log(
@@ -369,7 +330,7 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
         if (_activated == true) {
             // Later revisit to decide whether to apply a redemptionFee.
             activeTokenContract.transferFrom(
-                treasury,
+                s.treasury,
                 msg.sender,
                 redemptionAmount
             );
@@ -379,7 +340,7 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
             );
         } else {
             // Treasury retains redemptionFee amount of activeToken.
-            activeTokenContract.burn(treasury, redemptionAmount);
+            activeTokenContract.burn(s.treasury, redemptionAmount);
             console.log(
                 "Burned %s activeTokens from Treasury",
                 redemptionAmount
@@ -400,8 +361,8 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
 
         // No longer need to back the _amount of unactiveTokens burned.
         treasuryContract.adjustBackingReserve({
-            _wildToken: unactiveToken,
-            _backingToken: activeToken,
+            _wildToken: s.unactiveToken,
+            _backingToken: s.activeToken,
             _amount: int(_amount) * -1
         });
         console.log(
@@ -446,7 +407,11 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
         console.log("Burned %s activeTokens from caller", redemptionAmount);
 
         // Approve activeToken first before initiating transfer
-        activeTokenContract.transferFrom(msg.sender, treasury, _redemptionFee);
+        activeTokenContract.transferFrom(
+            msg.sender,
+            s.treasury,
+            _redemptionFee
+        );
         console.log(
             "Transferred %s activeTokens from %s to Treasury",
             _amount,
@@ -494,7 +459,7 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
         // redemptionAmount = _amount - fee;
 
         IERC4626 activePool = IERC4626(
-            safeManagerContract.getActivePool(activeToken)
+            safeManagerContract.getActivePool(s.activeToken)
         );
 
         // Withdraw activeTokens from respective ActivePool.
@@ -557,7 +522,7 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
             uint stoaYield
         )
     {
-        uint activeTokenContractSupply = IERC20(activeToken).totalSupply();
+        uint activeTokenContractSupply = IERC20(s.activeToken).totalSupply();
         if (activeTokenContractSupply == 0) {
             return (0, 0, 0);
         }
@@ -580,7 +545,7 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
             );
             console.log("Changed supply");
             if (stoaYield > 0) {
-                activeTokenContract.mint(treasury, stoaYield);
+                activeTokenContract.mint(s.treasury, stoaYield);
                 console.log("Minted %s management fee to Treasury", stoaYield);
             }
 
@@ -612,11 +577,11 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
     }
 
     function getActiveToken() public view returns (address _activeToken) {
-        _activeToken = activeToken;
+        _activeToken = s.activeToken;
     }
 
     function getInputToken() public view returns (address _inputToken) {
-        _inputToken = inputToken;
+        _inputToken = s.inputToken;
     }
 
     function adjustMintFee(uint _newFee) external {
@@ -636,8 +601,8 @@ contract ControllerFacet is Common, ReentrancyGuard, Initializable {
 
     function setSafeManager(address _safeManager) external {
         LibDiamond.enforceIsContractOwner();
-        safeManager = _safeManager;
-        safeManagerContract = ISafeManager(safeManager);
+        s.safeManager = _safeManager;
+        safeManagerContract = ISafeManager(s.safeManager);
     }
 
     /**

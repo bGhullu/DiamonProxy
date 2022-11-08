@@ -7,7 +7,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 
 contract LockFacet is Initializable {
     uint public unlockTime;
-    address payable public user;
+    address payable public _owner;
 
     event Withdrawal(uint amount, uint when);
 
@@ -29,7 +29,7 @@ contract LockFacet is Initializable {
         );
 
         unlockTime = _unlockTime;
-        user = payable(msg.sender);
+        _owner = payable(msg.sender);
     }
 
     // function initialize(uint _unlockTime) external payable initializer {
@@ -43,10 +43,10 @@ contract LockFacet is Initializable {
         // console.log("Unlock time is %o and block timestamp is %o", unlockTime, block.timestamp);
 
         require(block.timestamp >= unlockTime, "You can't withdraw yet");
-        require(msg.sender == user, "You aren't the owner");
+        require(msg.sender == _owner, "You aren't the owner");
 
         emit Withdrawal(address(this).balance, block.timestamp);
 
-        user.transfer(address(this).balance);
+        _owner.transfer(address(this).balance);
     }
 }
