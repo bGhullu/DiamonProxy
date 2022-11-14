@@ -30,6 +30,14 @@ struct AppStorage {
     address syntheticToken;
     // @dev the underlyinToken token to be received
     address underlyingToken;
+    address buffer;
+    mapping(address => uint256) flowRate;
+    /// @notice The last update timestamp gor the flowRate for each address.
+    mapping(address => uint256) lastFlowrateUpdate;
+    /// @notice The amount of flow available per ERC20.
+    mapping(address => uint256) flowAvailable;
+    mapping(address => address) activator;
+    mapping(address => uint256) currentExchanged;
     // @dev contract pause state
     bool isPaused;
     mapping(address => ActivatorAccount) accounts;

@@ -142,7 +142,7 @@
 //       '0x520082e0',
 //       '0xf82bd179', transferActiveTokens
 //       '0x01cc2a00', transferDebtTokens
-//       '0x61d027b3', treasury()
+//       '0x61d027b3', //treasury()
 //       '0x246adc8f', withdrawToken()
 //       contract: [Contract],
 //       remove: [Function: remove],

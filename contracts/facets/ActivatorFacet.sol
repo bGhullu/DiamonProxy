@@ -5,6 +5,7 @@ pragma solidity ^0.8.7;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {LibDiamond} from "../libraries/LibDiamond.sol";
+import "../interfaces/IActivatorBuffer.sol";
 import "../libraries/TokenUtils.sol";
 import "../base/Error.sol";
 import "../libraries/SafeCast.sol";
@@ -61,13 +62,15 @@ contract ActivatorFacet is Initializable, ReentrancyGuardUpgradeable {
 
     constructor() {}
 
-    function initialize(address _syntheticToken, address _underlyingToken)
-        external
-        initializer
-    {
+    function initialize(
+        address _syntheticToken,
+        address _underlyingToken,
+        address _buffer
+    ) external initializer {
         LibDiamond.enforceIsContractOwner();
         s.syntheticToken = _syntheticToken;
         s.underlyingToken = _underlyingToken;
+        s.buffer = _buffer;
         s.isPaused = false;
     }
 
@@ -86,6 +89,7 @@ contract ActivatorFacet is Initializable, ReentrancyGuardUpgradeable {
     }
 
     function depositSynthetic(uint256 amount) external nonReentrant {
+        TokenUtils.safeApprove(s.syntheticToken, address(this), amount);
         // IERC20(s.syntheticToken).approve(address(this), amount);
         _updateAccount(
             UpgradeActivatorAccount({
@@ -127,7 +131,12 @@ contract ActivatorFacet is Initializable, ReentrancyGuardUpgradeable {
                 exchangedBalance: SafeCast.toInt256(amount)
             })
         );
-        TokenUtils.safeTransfer(s.underlyingToken, msg.sender, amount);
+        IActivatorBuffer(s.buffer).withdraw(
+            s.underlyingToken,
+            amount,
+            msg.sender
+        );
+        // TokenUtils.safeTransfer(s.underlyingToken, msg.sender, amount);
         TokenUtils.safeBurn(s.syntheticToken, amount);
         emit Claim(
             msg.sender,
@@ -135,6 +144,8 @@ contract ActivatorFacet is Initializable, ReentrancyGuardUpgradeable {
             s.accounts[msg.sender].exchangedBalance
         );
     }
+
+    function exchange(uint256 amount) external {}
 
     function _updateAccount(UpgradeActivatorAccount memory param) internal {
         ActivatorAccount storage _account = s.accounts[param.user];
@@ -153,7 +164,7 @@ contract ActivatorFacet is Initializable, ReentrancyGuardUpgradeable {
         return s.syntheticToken;
     }
 
-    function getUnderlyingToken() external view returns (address) {
+    function UnderlyingToken() external view returns (address) {
         return s.underlyingToken;
     }
 
@@ -164,7 +175,7 @@ contract ActivatorFacet is Initializable, ReentrancyGuardUpgradeable {
     {
         ActivatorAccount storage _account = s.accounts[user];
         uint256 unexchange = _account.unexchangedBalance;
-        uint256 exchange = _account.exchangedBalance;
-        return (unexchange, exchange);
+        uint256 exchanged = _account.exchangedBalance;
+        return (unexchange, exchanged);
     }
 }
